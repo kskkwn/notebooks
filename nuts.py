@@ -11,7 +11,6 @@ sns.set_style("white")
 true_μ = 3
 true_σ = 1
 nb_data = 1000
-# nb_data = 500
 
 x = np.random.normal(true_μ, true_σ, nb_data)
 
@@ -38,25 +37,19 @@ def H(θₜ, p):
 
 
 def Leapfrog(x, θ, r, ε):
-    # print("before", θ, L(*θ))
     θ_d = deepcopy(θ)
     r_d = deepcopy(r)
     r_d -= 0.5 * ε * log_dh(θ_d[0], θ_d[1])
     θ_d[0] = θ_d[0] + ε * r_d[0]
     θ_d[1] = θ_d[1] + ε * r_d[1]
     r_d -= 0.5 * ε * log_dh(θ_d[0], θ_d[1])
-    # print("after", θ_d, L(*θ_d))
-
-    # from IPython.core.debugger import Pdb as pdb
-    # pdb(color_scheme="Linux").set_trace()
     return θ_d, r_d
 
 
 def BuildTree(θ, r, u, v, j, ε):
     if j == 0:
         θd, rd = Leapfrog(x, θ, r, v * ε)
-        # if np.log(u) <= (L(*θd) - 0.5 * np.dot(rd, rd)):
-        if u <= np.exp(L(*θd) - 0.5 * np.dot(rd, rd)):
+        if np.log(u) <= (L(*θd) - 0.5 * np.dot(rd, rd)):
             Cd_ = [[θd, rd]]
         else:
             Cd_ = []
@@ -96,26 +89,19 @@ for m in tqdm(range(M)):
         if sd == 1:
             C.extend(Cd)
         s = sd * int((np.dot(θ_plus - θ_minus, r_minus) >= 0) and (np.dot(θ_plus - θ_minus, r_plus) >= 0))
-        # print(sd, s)
-
         j += 1
-        # print(r"%d" % j)
-
-    # temp = []
-    # for c in C:
-    #     temp.append(c[0])
-    # temp = np.array(temp)
-    # for i, t in enumerate(temp):
-    #     plt.text(t[0], t[1], "%d" % i)
-    # plt.scatter(temp[:, 0], temp[:, 1])
-    # plt.show()
 
     index = random.choice(list(range(len(C))))
     list_θₘ.append(C[index][0])
 
     hist_L.append(L(C[index][0][0], C[index][0][1]))
+
+list_θₘ = np.array(list_θₘ)
+plt.scatter(list_θₘ[:, 0], list_θₘ[:, 1], marker=".")
+plt.show()
+
 plt.plot(hist_L)
 plt.show()
 
-for i in list_θₘ:
-    print(i)
+# for i in list_θₘ:
+#     print(i)
