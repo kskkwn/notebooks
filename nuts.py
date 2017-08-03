@@ -22,9 +22,9 @@ gamma_lpdf = lambda a: np.sum(gamma.logpdf(x, a))
 
 Δ_max = 1000
 θ0 = np.array([random.randn(), random.gamma(1)])
-ε = 0.1
+ε = 0.01
 L = norm_lpdf
-M = 100
+M = 1000
 list_θₘ = [θ0]
 
 
@@ -38,19 +38,25 @@ def H(θₜ, p):
 
 
 def Leapfrog(x, θ, r, ε):
+    # print("before", θ, L(*θ))
     θ_d = deepcopy(θ)
     r_d = deepcopy(r)
     r_d -= 0.5 * ε * log_dh(θ_d[0], θ_d[1])
     θ_d[0] = θ_d[0] + ε * r_d[0]
     θ_d[1] = θ_d[1] + ε * r_d[1]
     r_d -= 0.5 * ε * log_dh(θ_d[0], θ_d[1])
+    # print("after", θ_d, L(*θ_d))
+
+    # from IPython.core.debugger import Pdb as pdb
+    # pdb(color_scheme="Linux").set_trace()
     return θ_d, r_d
 
 
 def BuildTree(θ, r, u, v, j, ε):
     if j == 0:
         θd, rd = Leapfrog(x, θ, r, v * ε)
-        if np.log(u) <= (L(*θd) - 0.5 * np.dot(rd, rd)):
+        # if np.log(u) <= (L(*θd) - 0.5 * np.dot(rd, rd)):
+        if u <= np.exp(L(*θd) - 0.5 * np.dot(rd, rd)):
             Cd_ = [[θd, rd]]
         else:
             Cd_ = []
@@ -63,7 +69,6 @@ def BuildTree(θ, r, u, v, j, ε):
         else:
             _, _, θ_plus, r_plus, Cdd_, sdd = BuildTree(θ_plus, r_plus, u, v, j - 1, ε)
         sd = sdd * sd * int((np.dot(θ_plus - θ_minus, r_minus) >= 0) and (np.dot(θ_plus - θ_minus, r_plus) >= 0))
-        # sd = sdd * sd * int((np.dot(-θ_plus + θ_minus, r_minus) >= 0) and (np.dot(θ_plus - θ_minus, r_plus) >= 0))
         Cd_.extend(Cdd_)
 
         return θ_minus, r_minus, θ_plus, r_plus, Cd_, sd
@@ -71,14 +76,14 @@ def BuildTree(θ, r, u, v, j, ε):
 hist_L = []
 for m in tqdm(range(M)):
     r0 = random.randn(2)
-    u = random.uniform(0, exp(L(*θ0) - 0.5 * np.dot(r0, r0)))
+    u = random.uniform(0, exp(L(*list_θₘ[-1]) - 0.5 * np.dot(r0, r0)))
 
     θ_minus = deepcopy(list_θₘ[-1])
     θ_plus = deepcopy(list_θₘ[-1])
-    r_minus = r0
-    r_plus = r0
+    r_minus = deepcopy(r0)
+    r_plus = deepcopy(r0)
     j = 0
-    C = [[deepcopy(list_θₘ[-1]), r0]]
+    C = [[deepcopy(list_θₘ[-1]), deepcopy(r0)]]
     s = 1
 
     while s == 1:
@@ -87,21 +92,23 @@ for m in tqdm(range(M)):
             θ_minus, r_minus, _, _, Cd, sd = BuildTree(θ_minus, r_minus, u, v, j, ε)
         else:
             _, _, θ_plus, r_plus, Cd, sd = BuildTree(θ_plus, r_plus, u, v, j, ε)
-        s = sd * int((np.dot(θ_plus - θ_minus, r_minus) >= 0) and (np.dot(θ_plus - θ_minus, r_plus) >= 0))
 
         if sd == 1:
             C.extend(Cd)
-        j += 1
-        print(r"%d" % j)
+        s = sd * int((np.dot(θ_plus - θ_minus, r_minus) >= 0) and (np.dot(θ_plus - θ_minus, r_plus) >= 0))
+        # print(sd, s)
 
-    temp = []
-    for c in C:
-        temp.append(c[0])
-    temp = np.array(temp)
-    for i, t in enumerate(temp):
-        plt.text(t[0], t[1], "%d" % i)
-    plt.scatter(temp[:, 0], temp[:, 1])
-    plt.show()
+        j += 1
+        # print(r"%d" % j)
+
+    # temp = []
+    # for c in C:
+    #     temp.append(c[0])
+    # temp = np.array(temp)
+    # for i, t in enumerate(temp):
+    #     plt.text(t[0], t[1], "%d" % i)
+    # plt.scatter(temp[:, 0], temp[:, 1])
+    # plt.show()
 
     index = random.choice(list(range(len(C))))
     list_θₘ.append(C[index][0])
