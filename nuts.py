@@ -6,6 +6,8 @@ import seaborn as sns
 from scipy.stats import norm, gamma
 from tqdm import tqdm
 from numpy import random
+from matplotlib.animation import FuncAnimation
+
 sns.set_style("white")
 
 true_μ = 3
@@ -21,9 +23,9 @@ gamma_lpdf = lambda a: np.sum(gamma.logpdf(x, a))
 
 Δ_max = 1000
 θ0 = np.array([random.randn(), random.gamma(1)])
-ε = 0.01
+ε = 0.05
 L = norm_lpdf
-M = 1000
+M = 100
 list_θₘ = [θ0]
 
 
@@ -67,6 +69,7 @@ def BuildTree(θ, r, u, v, j, ε):
         return θ_minus, r_minus, θ_plus, r_plus, Cd_, sd
 
 hist_L = []
+hist_C = []
 for m in tqdm(range(M)):
     r0 = random.randn(2)
     u = random.uniform(0, exp(L(*list_θₘ[-1]) - 0.5 * np.dot(r0, r0)))
@@ -95,13 +98,58 @@ for m in tqdm(range(M)):
     list_θₘ.append(C[index][0])
 
     hist_L.append(L(C[index][0][0], C[index][0][1]))
+    hist_C.append(C)
+
+# from IPython.core.debugger import Pdb as pdb
+# pdb(color_scheme="Linux").set_trace()
 
 list_θₘ = np.array(list_θₘ)
-plt.scatter(list_θₘ[:, 0], list_θₘ[:, 1], marker=".")
-plt.show()
+for i in list_θₘ:
+    print(i)
 
-plt.plot(hist_L)
-plt.show()
 
-# for i in list_θₘ:
-#     print(i)
+def plot(list_θₘ, hist_C):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
+    def update(i):
+        fig.canvas.draw()
+        ax.cla()
+        j = i // 3
+        if (i % 3) == 0:
+            ax.scatter(np.array(hist_C[j])[:, 0, 0], np.array(hist_C[j])[:, 0, 1], linewidth=0, marker=".")
+            ax.plot(list_θₘ[:(j), 0], list_θₘ[:(j), 1], c="gray", linewidth=0.3, alpha=0.4)
+            ax.scatter(list_θₘ[:(j), 0], list_θₘ[:(j), 1], c="g", linewidth=0, marker=".")
+
+        elif (i % 3) == 1:
+            ax.scatter(np.array(hist_C[j])[:, 0, 0], np.array(hist_C[j])[:, 0, 1], linewidth=0, marker=".")
+            ax.plot(list_θₘ[:(j + 1), 0], list_θₘ[:(j + 1), 1], c="gray", linewidth=0.3, alpha=0.4)
+            ax.scatter(list_θₘ[:(j + 1), 0], list_θₘ[:(j + 1), 1], c="g", linewidth=0, marker=".")
+        else:
+            ax.scatter(np.array(hist_C[j])[:, 0, 0], np.array(hist_C[j])[:, 0, 1], linewidth=0, marker=".", c="w")
+            ax.plot(list_θₘ[:(j + 1), 0], list_θₘ[:(j + 1), 1], c="gray", linewidth=0.3, alpha=0.4)
+            ax.scatter(list_θₘ[:(j + 1), 0], list_θₘ[:(j + 1), 1], c="g", linewidth=0, marker=".")
+
+        plot_lim = 30
+        if(j) > plot_lim:
+            temp_list = np.array([[np.min(np.array(C)[:, 0], axis=0),
+                                   np.max(np.array(C)[:, 0], axis=0)] for C in hist_C[j - plot_lim: j]])
+
+            temp_xlim = [np.min(temp_list[:, :, 0]), np.max(temp_list[:, :, 0])]
+            xlim_range = temp_xlim[1] - temp_xlim[0]
+            temp_ylim = [np.min(temp_list[:, :, 1]), np.max(temp_list[:, :, 1])]
+            ylim_range = temp_ylim[1] - temp_ylim[0]
+            plt.xlim(temp_xlim[0] - xlim_range * 0.1, temp_xlim[1] + xlim_range * 0.1)
+            plt.ylim(temp_ylim[0] - ylim_range * 0.1, temp_ylim[1] + ylim_range * 0.1)
+
+    ani = FuncAnimation(fig, update, frames=len(hist_C) * 3 - 2)
+    ani.save("temp.gif", writer="imagemagick", fps=3)
+
+plot(list_θₘ, hist_C)
+# plt.show()
+
+# plt.scatter(list_θₘ[:, 0], list_θₘ[:, 1], marker=".")
+# plt.show()
+
+# plt.plot(hist_L)
+# plt.show()
