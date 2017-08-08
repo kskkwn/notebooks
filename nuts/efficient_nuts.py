@@ -77,7 +77,7 @@ def BuildTree(θ, r, u, v, j, ε):
 hist_L = []
 for m in tqdm(range(M)):
     r0 = random.randn(2)
-    u = random.uniform(0, exp(L(*θ0) - 0.5 * np.dot(r0, r0)))
+    u = random.uniform(0, exp(L(*list_θₘ[-1]) - 0.5 * np.dot(r0, r0)))
 
     θ_minus = deepcopy(list_θₘ[-1])
     θ_plus = deepcopy(list_θₘ[-1])

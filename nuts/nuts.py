@@ -146,10 +146,3 @@ def plot(list_θₘ, hist_C):
     ani.save("temp.gif", writer="imagemagick", fps=3)
 
 plot(list_θₘ, hist_C)
-# plt.show()
-
-# plt.scatter(list_θₘ[:, 0], list_θₘ[:, 1], marker=".")
-# plt.show()
-
-# plt.plot(hist_L)
-# plt.show()
