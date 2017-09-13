@@ -1,0 +1,3 @@
+[submodule "tweet_nlp/pytorch-seq2seq"]
+	path = tweet_nlp/pytorch-seq2seq
+	url = https://github.com/IBM/pytorch-seq2seq.git
