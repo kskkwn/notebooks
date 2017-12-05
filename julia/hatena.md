@@ -1,16 +1,50 @@
 この記事は[Julia Advent Calendar 2017](https://qiita.com/advent-calendar/2017/julialang)の17日目の記事です．
 普段はpythonばかり書いていて，juliaは最近文法覚えてきたかなレベルなので色々許してください．
 
-## 式or擬似コードに可能な限り近いプログラム
+コードの全体はここにあります．
 
-- 自分で解いた数式を実装するとき
-- 論文に書いてある擬似コードを実装するとき
+[https://github.com/kskkwn/notebooks/tree/master/julia:embed:cite]
 
-式or擬似コードに可能な限り近いプログラムを書くようにしている．
-ここで"可能な限り近い"とは，関数の名前とかを合わせるとかだけでなく，$\alpha$などunicode文字をバンバン使うことを意味する．このようなプログラムを書くことで，
+## 概要
+
+- この記事ではunicode文字を使いまくって以下の画像のようなプログラムを作成します．
+- juliaとpythonで実装して，書きやすさと実行速度を比較します．
+- 書きやすさが悪化するので型指定はしません．
+- 結論は以下です．
+  - juliaのほうが色んなunicode文字が使えるから，書きやすく可読性が高い．
+  - インデックスが1から始まるのがいい．
+  - juliaのほうが倍程度速くなることもあるけど，思ったより速くならない (型指定してないからかも)
+  - juliaのeinsumを何も考えずに使うと激遅になる．
+
+unicode文字は以下の埋め込みではおそらく微妙な感じに表示されますが，等幅なエディタやjupyter notebookでは以下のように表示されます．
+[f:id:ksknw:20171205223939p:plain]
+
+<!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-generate-toc again -->
+### Table of Contents
+
+- [はじめに (式or擬似コードに可能な限り近いプログラム)](#はじめに-式or擬似コードに可能な限り近いプログラム)
+- [Dynamic Time Warping](#dynamic-time-warping)
+    - [python](#python)
+    - [julia](#julia)
+    - [実行速度比較](#実行速度比較)
+- [Stochastic Block Model](#stochastic-block-model)
+    - [python](#python)
+    - [julia](#julia)
+    - [実行速度比較](#実行速度比較)
+    - [einsumをfor文で書き直す](#einsumをfor文で書き直す)
+    - [実行速度比較](#実行速度比較)
+- [おわりに](#おわりに)
+
+<!-- markdown-toc end -->
+
+## はじめに (式or擬似コードに可能な限り近いプログラム)
+
+自分で解いた数式を実装するときや論文に書いてある擬似コードを実装するときには，可能な限りそれらに近いプログラムを書くようにしている．
+近づけるために，[tex:{ \displaystyle \alpha}]などunicode文字を多用する．
+このようなプログラムを書くことで，
 
 - デバッグがしやすい
-- 頭を使わなくてもプログラミングできる
+- 擬似コードや数式をそのまま打てば動く(言い過ぎ)
 
 という利点がある．
 
@@ -42,26 +76,43 @@ def BuildTree(θ, r, u, v, j, ε):
         return θ_minus, r_minus, θ_plus, r_plus, Cd_, sd
 ```
 
-pythonではある程度unicodeを変数に使うことができ，例えばギリシャ文字などは全て思うように書ける．
-しかし，一部の例えば$\theta ^+$や$\nabla$などの記号は使うことができないため，微妙に見難い感じになってしまっていた．
-(あとpythonはまじで遅い)
+pythonではギリシャ文字などの一部のunicode文字を変数に使うことができる．
+しかし，一部の例えば
+[tex:{ \displaystyle
+\theta ^+
+}]や
+[tex:{ \displaystyle
+\nabla
+}]
+などの記号は使うことができないため，微妙に見難い感じになってしまっていた．
 探してみるとjuliaで同じことをしている人がいて，こちらのほうがだいぶ良さそうだった．
 
 [http://bicycle1885.hatenablog.com/entry/2014/12/05/011256:embed:cite]
 
-juliaでは↑であげたような文字に加えて$\hat$みたいな修飾文字も[変数名に使えるらしい](https://docs.julialang.org/en/release-0.4/manual/unicode-input/)．
-さらに不等号の$\le$とかが定義されていて使えるらしい．
-juliaすごい．あとなんか速いらしい．pythonには実装されていない()多重入れ子なfor文も使っていいらしい．
+juliaでは↑であげたような文字に加えて
+[tex:{ \displaystyle
+\hat a
+}]
+みたいな修飾文字や不等号の
+[tex:{ \displaystyle
+\le
+}]
+とかを使える．
+juliaで使えるunicode文字一覧は[こちら](https://docs.julialang.org/en/stable/manual/unicode-input/)．
 
-ということで以下では練習がてら，これまでpythonで実装したコードをjuliaで書きなおしてみて，数式/擬似コードの再現度と実行速度を比較する．
 
-NUTSはもういいかなって感じなので
+juliaすごい．ということで，以下ではこれまでpythonで実装したコードをjuliaで書きなおし，書きやすさと実行速度を比較する．
+
+NUTSは既にやられているようなので
 
 - Dynamic Time Warping
 - Stochastic Block Model
 
 について実装する．
-juliaはたぶん型とかをちゃんと定義するともっと速くなるが，「そのまま実装する」という目的に反するのでやらない．
+
+**juliaは型をちゃんと指定するともっと速くなるが，「そのまま実装する」という目的に反するのでやらない．**
+
+
 
 ## Dynamic Time Warping
 Dynamic Time Warping (DTW) は，２つの連続値系列データのいい感じの距離を求めるアルゴリズム．
@@ -70,7 +121,7 @@ pythonで実装したときの記事はこっち
 [http://ksknw.hatenablog.com/entry/2017/03/26/234048:embed:cite]
 
 
-(DTW自体の論文ではないけど) [A global averaging method for dynamic time warping, with applications to clustering](http://www.francois-petitjean.com/Research/Petitjean2011-PR.pdf)
+[A global averaging method for dynamic time warping, with applications to clustering](http://www.francois-petitjean.com/Research/Petitjean2011-PR.pdf) (DTW自体の論文ではない)
 の擬似コードを参考にしてプログラムを書く．
 擬似コードは以下．
 
@@ -78,7 +129,7 @@ pythonで実装したときの記事はこっち
 
 [f:id:ksknw:20171130230720p:plain]
 
-ただしこの擬似コードは多分間違っているので，m[i,j]の遷移前のインデックスをsecondに入れるように変えた．
+(ただしこの擬似コードは多分間違っているので，m[i,j]の遷移前のインデックスをsecondに入れるように変えた．)
 
 
 ### python
@@ -116,7 +167,7 @@ def dtw(A, B):
 ```
 
 擬似コードや数式ではインデックスを1から始めることが多いが，pythonは0からなので，頭の中でインデックスをずらしながらプログラムを書く必要がある．
-それ以外は割とそのまま書けた．
+他にはv1が添字っぽくない程度で，大体そのまま書けた．
 
 
 ### julia
@@ -127,10 +178,9 @@ def dtw(A, B):
 second(x) = x[2]
 
 function minVal(v₁, v₂, v₃)
-#    if first(v₁) ≦ minimum([first(v₂), first(v₃)])
-    if first(v₁) <= minimum([first(v₂), first(v₃)])
+    if first(v₁) ≤ minimum([first(v₂), first(v₃)])
         return v₁, 1
-    elseif first(v₂) <= first(v₃)
+    elseif first(v₂) ≤ first(v₃)
         return v₂, 2
     else
         return v₃, 3
@@ -159,22 +209,27 @@ function DTW(A, B)
 end
 ```
 
-endがある分pythonより長い．一方でpythonでは使えない$v\_1$とかが使えるので，より忠実な感じになっている．
-
+endがある分pythonより長い．一方でpythonでは使えない
+[tex:{ \displaystyle
+v\_1}]とか
+[tex:{ \displaystyle
+≤}]
+が使えるので，より忠実な感じになっている．
 
 実際に書いてみるとわかるけど，インデックスが擬似コードと同じなのは結構大事で，全然頭を使わずにそのまま書けた．
 
 
-### 実行速度
-juliaはpythonに比べてずっと早いらしいので実行速度を比較した．
+### 実行速度比較
+juliaはpythonに比べて速いらしいので実行速度を比較した．
 シェルのtime を使って実行速度を比較した．
-コードの全体は[ここ] (https://github.com/kskkwn/notebooks/tree/master/julia)にある．
+コードの全体は[ここ](https://github.com/kskkwn/notebooks/tree/master/julia)にある．
 
-結果
+
 ``` 
 julia dtw_julia.jl  2.62s user 0.30s system 110% cpu 2.641 total
 python dtw_python.py  2.76s user 0.11s system 99% cpu 2.873 total
 ```
+
 
 期待していたよりも全然速くならなかった．
 実行時間が短くてコンパイルのオーバヘッドが大きいのかなと思ったから，forで10回実行するようにした結果が以下．
@@ -185,18 +240,25 @@ python dtw_python.py  25.81s user 0.78s system 99% cpu 26.591 total
 ```
 
 多少速い気がするけど，期待としては数十倍とかだったので，いまいち．
-よくわかってないけど，リストに色々な型の変数を入れるやり方だとそこまで速くならないのかも?
+型指定していないとこれぐらいなのかな(?)
 
 ## Stochastic Block Model
 Stochastic Block Model (SBM)は非対称関係データのクラスタリング手法．
-崩壊ギブスサンプリングで事後確率からサンプリングして解く． (TODO 説明ちゃんとする)
+隠れ変数の事後分布をサンプリングして近似する(周辺化ギブスサンプラー)．
+今回の例では特にクラスタ割り当て
+[tex:{ \displaystyle
+z\_1
+}]
+の事後分布を求めて，サンプリングする部分をやる．
+
 
 pythonでの実装したときの記事はこっち．
 [http://ksknw.hatenablog.com/entry/2017/04/23/194223:embed:cite]
 
 
-[関係データ学習という本](http://www.kspub.co.jp/book/detail/1529212.html)にのっているクラスタzの事後確率に関する数式は以下． (TODO 数式が微妙に違うので直す)
+[関係データ学習という本](http://www.kspub.co.jp/book/detail/1529212.html)に載っているクラスタzの事後確率に関する数式は以下． (TODO 数式が微妙に違うので直す)
 
+[tex:{ \displaystyle
 z\_{1,i}}], [tex:{ \displaystyle
 z\_{2,j}}]をサンプリングする。
 
@@ -215,126 +277,219 @@ z\_{1,i}}]の事後確率は、
 
 <img src="https://latex.codecogs.com/gif.latex?\hat{b}_{k,l}=b_0 + \hat{n}_{k,l}^{(-)}" />
 
-<img src="https://latex.codecogs.com/gif.latex?\hat{m}_{1,k} = \sum_{i'\neqi, i'=1}^{N_1}\mathbb{I}(z_{1,i'}=k)" />
+<img src="https://latex.codecogs.com/gif.latex?\hat{m}_{1,k} = m_{1,k} - \mathbb{I}(z_{1,i}=k)" />
 
-<img src="https://latex.codecogs.com/gif.latex?\hat{n}_{k,l}^{(+)} = \sum_{i'\neqi, i'=1}^{N_1}\sum_{j=1}^{N_2}x_{i',j}\mathbb{I}(z_{1,i'}=k)\mathbb{I}(z_{2,j}=l)" />
+<img src="https://latex.codecogs.com/gif.latex?\hat{n}_{k,l}^{(+)} = n_{k,l}^{(+)} - \mathbb{I}(z_{1,i}=k)\sum_{j=1}^{N_2}x_{i,j}\mathbb{I}(z_{2,j}=l)" />
 
-<img src="https://latex.codecogs.com/gif.latex?\hat{n}_{k,l}^{(-)} = \sum_{i'\neqi, i'=1}^{N_1}\sum_{j=1}^{N_2}(1-x_{i',j})\mathbb{I}(z_{1,i'}=k)\mathbb{I}(z_{2,j}=l)" />
+<img src="https://latex.codecogs.com/gif.latex?\hat{n}_{k,l}^{(-)} = n_{k,l}^{(+)} - \mathbb{I}(z_{1,i}=k)\sum_{j=1}^{N_2}(1-x_{i,j})\mathbb{I}(z_{2,j}=l)" />
+
+
+<img src="https://latex.codecogs.com/gif.latex?m_{1,k} = \sum_{i=1}^{N_1}\mathbb{I}(z_{1,i}=k)" />
+
+<img src="https://latex.codecogs.com/gif.latex?n_{k,l}^{(+)} = \sum_{i=1}^{N_1}\sum_{j=1}^{N_2}x_{i,j}\mathbb{I}(z_{1,i}=k)\mathbb{I}(z_{2,j}=l)" />
+
+<img src="https://latex.codecogs.com/gif.latex?n_{k,l}^{(-)} = \sum_{i=1}^{N_1}\sum_{j=1}^{N_2}(1-x_{i,j})\mathbb{I}(z_{1,i}=k)\mathbb{I}(z_{2,j}=l)" />
+
 
 <img src="https://latex.codecogs.com/gif.latex?\Gamma" />はガンマ関数で、
 <img src="https://latex.codecogs.com/gif.latex?K,L,a_0,b_0,\alpha_{1,k}" />はパラメータ
 
-この確率を求める部分をpythonとjuliaで比較する．
+この事後分布を求めてサンプリングする部分をpythonとjuliaで比較する．
+全部書くと見づらいので一部だけ，コードの全体は同じく[ここ](https://github.com/kskkwn/notebooks/tree/master/julia)にある．
 
 ### python
 
 ```python
-nb_k = 8
-α = 6
-a0 = b0 = 0.5
+n_pos = np.einsum("ikjl, ij", np.tensordot(z1, z2, axes=0), X)  # n_pos_kl = n_pos[k][l]
+n_neg = np.einsum("ikjl, ij", np.tensordot(z1, z2, axes=0), 1 - X)
 
-import numpy as np
-from numpy import exp
-from scipy.special import loggamma as logΓ
-from numpy.random import choice
+m1_hat = lambda i: m1 - z1[i]  # m1_hat_k = m1_hat[k]
 
-m = lambda z: z.sum(axis=0)
-α1 = α2 = np.ones(nb_k) * α
+n_pos_hat = lambda i: n_pos - np.einsum("kjl, j", np.tensordot(z1, z2, axes=0)[i], X[i])
+n_neg_hat = lambda i: n_neg - np.einsum("kjl, j", np.tensordot(z1, z2, axes=0)[i], 1 - X[i])
 
+α_1_hat = lambda i: α1 + m1_hat(i)
+a_hat = lambda i: a0 + n_pos_hat(i)
+b_hat = lambda i: b0 + n_neg_hat(i)
 
-def onehot(i, nb_k):
-    ret = np.zeros(nb_k)
-    ret[i] = 1
-    return ret
+aᵢhat = a_hat(i)
+bᵢhat = b_hat(i)
 
-
-def update_z1(X, z1, z2):
-    N1, N2 = X.shape
-
-    m1 = m(z1)
-    m2 = m(z2)
-
-    new_z1 = []
-
-    for i in range(N1):
-        n_pos = np.einsum("ikjl, ij", np.tensordot(z1, z2, axes=0), X)  # n_pos_kl = n_pos[k][l]
-        n_neg = np.einsum("ikjl, ij", np.tensordot(z1, z2, axes=0), 1 - X)
-        # hatつきはi番目
-        m1_hat = lambda i: m1 - z1[i]  # m1_hat_k = m1_hat[k]
-
-        n_pos_hat = lambda i: n_pos - np.einsum("kjl, j", np.tensordot(z1, z2, axes=0)[i], X[i])
-        n_neg_hat = lambda i: n_neg - np.einsum("kjl, j", np.tensordot(z1, z2, axes=0)[i], 1 - X[i])
-
-        α_1_hat = lambda i: α1 + m1_hat(i)
-        a_hat = lambda i: a0 + n_pos_hat(i)
-        b_hat = lambda i: b0 + n_neg_hat(i)
-
-        aᵢhat = a_hat(i)
-        bᵢhat = b_hat(i)
-
-        p_z1ᵢ_left = logΓ(aᵢhat + bᵢhat) - logΓ(aᵢhat) - logΓ(bᵢhat)
-        p_z1ᵢ_right_upper = logΓ(aᵢhat + np.dot(X[i], z2)) + logΓ(bᵢhat + np.dot((1 - X[i]), z2))
-        p_z1ᵢ_right_lower = logΓ(aᵢhat + bᵢhat + m2)
-        p_z1ᵢ = (α_1_hat(i) * exp(p_z1ᵢ_left + p_z1ᵢ_right_upper - p_z1ᵢ_right_lower)).prod(axis=1)
-        p_z1ᵢ = p_z1ᵢ.real
-        p_z1ᵢ = p_z1ᵢ / p_z1ᵢ.sum()
-        new_z1.append(onehot(choice(range(nb_k), p=p_z1ᵢ), nb_k))
-    return new_z1
+p_z1ᵢ_left = logΓ(aᵢhat + bᵢhat) - logΓ(aᵢhat) - logΓ(bᵢhat)
+p_z1ᵢ_right_upper = logΓ(aᵢhat + np.dot(X[i], z2)) + logΓ(bᵢhat + np.dot((1 - X[i]), z2))
+p_z1ᵢ_right_lower = logΓ(aᵢhat + bᵢhat + m2)
+p_z1ᵢ = (α_1_hat(i) * exp(p_z1ᵢ_left + p_z1ᵢ_right_upper - p_z1ᵢ_right_lower)).prod(axis=1)
+p_z1ᵢ = p_z1ᵢ.real
+p_z1ᵢ = p_z1ᵢ / p_z1ᵢ.sum()
+new_z1.append(onehot(choice(range(nb_k), p=p_z1ᵢ), nb_k))
 ```
 
-数式には$\hat{a}$や$n^+$などが頻出するが，pythonではこれらの文字を使うことができない．
-このため，
-
-
+数式には[tex:{ \displaystyle
+\hat{a}
+}]
+や
+[tex:{ \displaystyle
+n\^+
+}]
+などが頻出するが，pythonではこれらの文字を使うことができない．
+このため，m1\_hatやn\_posなどの変数名になってしまっている．
 
 ### julia
 
 ```julia
-function update_z₁(X, 𝕀z₁, 𝕀z₂)
-    N₁, N₂ = size(X)
-    m₁ = m(𝕀z₁)
+@einsum n⁺[k,l] := X[i,j] * 𝕀z₁[i,k] * 𝕀z₂[j,l]
+@einsum n⁻[k,l] := (ones(X)[i,j] - X[i,j]) * 𝕀z₁[i,k] * 𝕀z₂[j,l]
 
-    for i in 1:N₁
-        @einsum n⁺[k,l] := X[i,j] * 𝕀z₁[i,k] * 𝕀z₂[j,l]
-        @einsum n⁻[k,l] := (ones(X)[i,j] - X[i,j]) * 𝕀z₁[i,k] * 𝕀z₂[j,l]
+m̂₁ = m(𝕀z₁) - transpose(𝕀z₁[i,:])
+@einsum Σ⁺x𝕀z₂[i,l] := X[i,j] * 𝕀z₂[j,l]
+@einsum Σ⁻x𝕀z₂[i,l] := (ones(X)[i,j] - X[i,j]) * 𝕀z₂[j,l]
+@einsum n̂⁺[k,l] := n⁺[k,l] - 𝕀z₁[i,k] * Σ⁺x𝕀z₂[i,l]
+@einsum n̂⁻[k,l] := n⁻[k,l] - 𝕀z₁[i,k] * Σ⁻x𝕀z₂[i,l]
 
-        m̂₁ = m(𝕀z₁) - transpose(𝕀z₁[i,:])
-        @einsum Σ⁺x𝕀z₂[i,l] := X[i,j] * 𝕀z₂[j,l]
-        @einsum Σ⁻x𝕀z₂[i,l] := (ones(X)[i,j] - X[i,j]) * 𝕀z₂[j,l]
-        @einsum n̂⁺[k,l] := n⁺[k,l] - 𝕀z₁[i,k] * Σ⁺x𝕀z₂[i,l]
-        @einsum n̂⁻[k,l] := n⁻[k,l] - 𝕀z₁[i,k] * Σ⁻x𝕀z₂[i,l]
+α̂₁ = α₁ + m̂₁
+â = a₀ + n̂⁺
+b̂ = b₀ + n̂⁻
 
-        α̂₁ = α₁ + m̂₁
-        â = a₀ + n̂⁺
-        b̂ = b₀ + n̂⁻
-
-        temp⁺ = zeros(â)
-        temp⁻ = zeros(â)
-        temp = zeros(â)
-        for j in 1:size(temp⁺)[1]
-            temp⁺[j,:] = Σ⁺x𝕀z₂[i,:]
-            temp⁻[j,:] = Σ⁻x𝕀z₂[i,:]
-            temp[j,:] = sum(𝕀z₂,1)
-        end
-
-        @einsum p_z₁[k,l] := exp(logΓ(â + b̂)-logΓ(â)-logΓ(b̂)
-            + logΓ(â+temp⁺)+logΓ(b̂+temp⁻)-logΓ(â+b̂+temp))[k,l]
-        p_z₁ = α̂₁ .* transpose(prod(p_z₁, 2))
-        p_z₁ /= sum(p_z₁)
-
-        𝕀z₁[i,:] = onehot(sample(1:K, Weights(p_z₁[:])), K)
-    end
-    return 𝕀z₁
+temp⁺ = zeros(â)
+temp⁻ = zeros(â)
+temp = zeros(â)
+for j in 1:size(temp⁺)[1]
+    temp⁺[j,:] = Σ⁺x𝕀z₂[i,:]
+    temp⁻[j,:] = Σ⁻x𝕀z₂[i,:]
+    temp[j,:] = sum(𝕀z₂,1)
 end
 
+@einsum p_z₁[k,l] := exp(logΓ(â + b̂)-logΓ(â)-logΓ(b̂)
+    + logΓ(â+temp⁺)+logΓ(b̂+temp⁻)-logΓ(â+b̂+temp))[k,l]
+p_z₁ = α̂₁ .* transpose(prod(p_z₁, 2))
+p_z₁ /= sum(p_z₁)
+
+𝕀z₁[i,:] = onehot(sample(1:K, Weights(p_z₁[:])), K)
 ```
 
+pythonに対してjuliaではα̂₁やn̂⁺などをそのまま変数名に使えて便利．
+
+### 実行速度比較
+
+```
+python sbm_python.py  8.74s user 0.09s system 354% cpu 2.492 total
+julia sbm_julia.jl  たぶん60000sぐらい(終わらない...)
+```
+(なにか間違っているかもしれないが，) なんとjuliaのほうが圧倒的に遅くなってしまった．
+というか同じ量の計算をさせると終わらない...
+調べてみるとeinsumがだめっぽいので，以下ではforで書き直す．
+
+
+### einsumをfor文で書き直す
+juliaのマクロ(@のやつ)はコンパイル時に別の式に展開される[らしい](http://www.geocities.jp/m_hiroi/light/julia01.html)．
+einsumのマクロもそれぞれの@einsumに対して多重のfor文を展開しているらしく，しかも単独でもnumpyのeinsumより遅いこともある[らしい](https://github.com/ahwillia/Einsum.jl/issues/1)．
+
+ということで，普通にfor文による実装に変更して，実行速度を比較し直す．
+コードは以下．
+
+```julia
+m̂₁ = m(𝕀z₁) - transpose(𝕀z₁[i,:])
+n⁺ = zeros(K, K)
+n⁻ = zeros(K, K)
+
+Σ⁺x𝕀z₂ = zeros(K)
+Σ⁻x𝕀z₂ = zeros(K)
+for l in 1:K
+    for j in 1:N₂
+        Σ⁺x𝕀z₂[l] += X[i,j] * 𝕀z₂[j,l]
+        Σ⁻x𝕀z₂[l] += (1 - X[i,j]) * 𝕀z₂[j,l]
+        for k in 1:K
+            n⁺[k,l] += 𝕀z₁[i,k] * X[i,j] *  𝕀z₂[j,l]
+            n⁻[k,l] += (1 - X[i,j]) * 𝕀z₁[i,k] * 𝕀z₂[j,l]
+        end
+    end
+end
+
+n̂⁺ = zeros(K,K)
+n̂⁻ = zeros(K,K)
+for k in 1:K
+    for l in 1:K
+        n̂⁺[k,l] += n⁺[k,l] - 𝕀z₁[i,k] * Σ⁺x𝕀z₂[l]
+        n̂⁻[k,l] += n⁻[k,l] - 𝕀z₁[i,k] * Σ⁻x𝕀z₂[l]
+    end
+end
+α̂₁ = α₁ + m̂₁
+â = a₀ + n̂⁺
+b̂ = b₀ + n̂⁻
+
+p_z₁ = α̂₁
+for k in 1:K
+    for l in 1:K
+        p_z₁[k] *= exp(logΓ(â[k,l] + b̂[k,l])-logΓ(â[k,l])-logΓ(b̂[k,l]) \
+            + logΓ(â[k,l]+Σ⁺x𝕀z₂[l])+logΓ(b̂[k,l]+Σ⁻x𝕀z₂[l])-logΓ(â[k,l]+b̂[k,l]+sum(𝕀z₂,1)[l]))
+    end
+end
+p_z₁ /= sum(p_z₁)
+
+𝕀z₁[i,:] = onehot(sample(1:K, Weights(p_z₁[:])), K)
+```
+
+for...endのせいで見難く感じるが，これは普段pythonばかり書いていてfor文に拒絶反応があるからかもしれない．
+書いている時の感想としては，行列の向きとか気にしなくていいので，einsumと同じ程度には書きやすい．
+実際にfor文を全部とっぱらえば数式と近くなるはず．
+
+### 実行速度比較
+```
+python sbm_python.py  8.74s user 0.09s system 354% cpu 2.492 total
+julia sbm_julia_2.jl  3.62s user 0.46s system 114% cpu 3.559 total
+```
+無事にpythonの半分以下の時間で処理が終わるようになった．
+普段python使っていると無意識的にfor文を避けていたのが，
+juliaなら何も気にせずに普通にfor文書きまくれば良さそう．
 
 
 
 ## おわりに
 
-|     | 書きやすさの改善                | 実行速度の改善     |
-|-----|---------------------------------|--------------------|
-| DTW | インデックスが1から．数字の添字 | そんなに変わらない |
-|     |                                 |                    |
+DTWとSBMという2つのアルゴリズムについて，pythonとjuliaでの実装を比較した．
+
+
+|              | 書きやすさの改善                | 実行速度の改善   |
+|--------------|---------------------------------|------------------|
+| DTW          | インデックスが1から．数字の添字 | 21.97s → 25.81s |
+| SBM (einsum) | α̂₁やn̂⁺をそのまま書ける         | 激遅             |
+| SBM (for)    | ↑                              | 8.74s  →  3.62s |
+
+
+pythonをjuliaで書き直すことで
+
+- 数式の添字をそのまま書くことができ，書きやすさと可読性が向上した．
+- 素直にfor文を使えば実行速度は改善した．
+- juliaのeinsumは激遅だった．
+
+実行速度の改善は予想していたよりは限定的だった．
+もちろん型を指定しろという話だと思うが，擬似コードや数式を動かしたいのであってプログラムを書きたいわけではないので，やらない．
+型指定するならCythonでもいいし，できるならtensorflowとかpytorchとかで実装してGPUに投げてもいい気がするけど，比較してないからよくわからない．
+
+また，やっていて気づいたこととして
+
+- jupyter notebook上で実行しつつ書くというやり方だと，コンパイル時間が以外と鬱陶しい
+- a\hat はOKだけど，\hat aはだめとか．\leはOKだけど，\leqqはだめとかunicode関連で微妙につまることがあった．
+
+この記事ではやらなかったこととして以下がある．気が向いたらやろうと思っている．
+
+- juliaの型指定
+- pythonのopt-einsumとの比較
+
+はてなだと表示が微妙だけど，jupyter とかでは綺麗に表示されて見やすいよ!(大事なこと)
+
+
+
+## 参考
+
+- [https://qiita.com/advent-calendar/2017/julialang:title]
+- [https://arxiv.org/abs/1111.4246:title]
+- [http://bicycle1885.hatenablog.com/entry/2014/12/05/011256:title]
+- [https://docs.julialang.org/en/stable/manual/unicode-input/:title]
+- [http://ksknw.hatenablog.com/entry/2017/03/26/234048:title]
+- [A global averaging method for dynamic time warping, with applications to clustering](http://www.francois-petitjean.com/Research/Petitjean2011-PR.pdf)
+- [http://ksknw.hatenablog.com/entry/2017/04/23/194223:title]
+- [http://www.kspub.co.jp/book/detail/1529212.html:title]
+- [http://www.geocities.jp/m_hiroi/light/julia01.html:title]
+- [https://github.com/ahwillia/Einsum.jl/issues/1:title]
+

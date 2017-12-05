@@ -51,3 +51,17 @@ def update_z1(X, z1, z2):
         p_z1ᵢ = p_z1ᵢ / p_z1ᵢ.sum()
         new_z1.append(onehot(choice(range(nb_k), p=p_z1ᵢ), nb_k))
     return new_z1
+
+if __name__ == '__main__':
+    import pandas as pd
+    data = pd.read_csv("./bi_data.csv")
+
+    X = data.get_values()
+    N1, N2 = X.shape
+    z1 = np.zeros((N1, nb_k))
+    z1[:, 0] = 1
+    z2 = np.zeros((N2, nb_k))
+    z2[:, 0] = 1
+
+    samples_z1 = update_z1(X, z1, z2)
+    samples_z2 = update_z1(np.transpose(X), z2, z1)

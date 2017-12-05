@@ -7,10 +7,9 @@ B = sin((1:T)/10 + pi*0.4)
 second(x) = x[2]
 
 function minVal(v₁, v₂, v₃)
-#    if first(v₁) ≦ minimum([first(v₂), first(v₃)])
-    if first(v₁) <= minimum([first(v₂), first(v₃)])
+    if first(v₁) ≤ minimum([first(v₂), first(v₃)])
         return v₁, 1
-    elseif first(v₂) <= first(v₃)
+    elseif first(v₂) ≤ first(v₃)
         return v₂, 2
     else
         return v₃, 3
