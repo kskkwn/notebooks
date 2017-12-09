@@ -1,8 +1,31 @@
+using Einsum
+using DataFrames
+using CSV
+using StatsBase
+
+K = 8
+α = 6
+a₀ = b₀ = 0.5
+
+α₁ = transpose(ones(K) * α) # =α₂
+logΓ = lgamma
+
+function m(x)
+    return sum(x,1)
+end
+
+function onehot(i, K)
+    ret = zeros(K)
+    ret[i] = 1
+    return ret
+end
+
 function update_z₁(X, 𝕀z₁, 𝕀z₂)
     N₁, N₂ = size(X)
     m₁ = m(𝕀z₁)
 
     for i in 1:N₁
+        print(i)
         @einsum n⁺[k,l] := X[i,j] * 𝕀z₁[i,k] * 𝕀z₂[j,l]
         @einsum n⁻[k,l] := (ones(X)[i,j] - X[i,j]) * 𝕀z₁[i,k] * 𝕀z₂[j,l]
 
@@ -34,3 +57,13 @@ function update_z₁(X, 𝕀z₁, 𝕀z₂)
     end
     return 𝕀z₁
 end
+
+data = readtable("./bi_data.csv")
+X = hcat(data.columns...)
+𝕀z₁ = zeros(size(X)[1],K)
+𝕀z₁[:,1] = 1
+𝕀z₂ = zeros(size(X)[1],K)
+𝕀z₂[:,1] = 1
+
+samples_𝕀z₁ = update_z₁(X, 𝕀z₁, 𝕀z₂)
+samples_𝕀z₂ = update_z₁(transpose(X), 𝕀z₂, 𝕀z₁)
