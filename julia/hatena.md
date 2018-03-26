@@ -114,7 +114,9 @@ NUTSは既にやられているようなので
 
 **juliaは型をちゃんと指定するともっと速くなるが，「そのまま実装する」という目的に反するのでやらない．**
 
+ちなみにNUTSのpython実装の話はこっち．
 
+[http://ksknw.hatenablog.com/entry/2017/08/06/185553:embed:cite]
 
 ## Dynamic Time Warping
 Dynamic Time Warping (DTW) は，２つの連続値系列データのいい感じの距離を求めるアルゴリズム．
@@ -489,6 +491,7 @@ pythonをjuliaで書き直すことで
 - [http://bicycle1885.hatenablog.com/entry/2014/12/05/011256:title]
 - [https://docs.julialang.org/en/stable/manual/unicode-input/:title]
 - [http://ksknw.hatenablog.com/entry/2017/03/26/234048:title]
+- [http://ksknw.hatenablog.com/entry/2017/08/06/185553:title]
 - [A global averaging method for dynamic time warping, with applications to clustering](http://www.francois-petitjean.com/Research/Petitjean2011-PR.pdf)
 - [http://ksknw.hatenablog.com/entry/2017/04/23/194223:title]
 - [http://www.kspub.co.jp/book/detail/1529212.html:title]

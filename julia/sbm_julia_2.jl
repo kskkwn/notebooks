@@ -53,7 +53,6 @@ function update_z₁(X, 𝕀z₁, 𝕀z₂)
         α̂₁ = α₁ + m̂₁
         â = a₀ + n̂⁺
         b̂ = b₀ + n̂⁻
-
         p_z₁ = α̂₁
         for k in 1:K
             for l in 1:K
