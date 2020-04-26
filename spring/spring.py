@@ -65,7 +65,7 @@ def spring(x, y, epsilon):
                 path.append(B[temp_i, temp_j])
                 temp_i, temp_j = B[temp_i, temp_j].astype(int)
 
-            C[S[:, -1] <= imin, -1] = 100000000
+            C[S <= imin] = 100000000
             yield np.array(path), dmin
 
 
