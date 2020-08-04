@@ -21,37 +21,45 @@ class InteractiveKNNPlotter(object):
         self.weight = np.ones(self.pcaed_data.shape[1]) / self.pcaed_data.shape[1]
         self.pcaed_query = pca.transform(query[None])
 
-        self._update_distances()
+        self._update_distances_and_knn()
         self._update_plot()
         self.figure.canvas.mpl_connect('button_press_event', self._onclick_loop)  # start loop
+
         plt.show()
 
-    def _update_distances(self):
+    def _update_distances_and_knn(self):
         self.distances = np.sum(np.abs(self.pcaed_data - self.pcaed_query) * self.weight, axis=1)
+        self.knn_indices = np.argsort(self.distances)[:self.k]
 
     def _update_plot(self):
-        knn_indexes = np.argsort(self.distances)[:self.k]
-        print(knn_indexes)
         for i, axis in enumerate(self.plot_axes):
-            axis.imshow(self.data[knn_indexes[i]])
+            axis.imshow(self.data[self.knn_indices[i]])
         plt.draw()
 
+    def _update_weight(self, index):
+        print(self.weight.shape)
+        temp_weight = np.abs(self.pcaed_data[self.knn_indices[index]] - self.pcaed_query)**(-1)
+        print(temp_weight.shape)
+        temp_weight /= np.sum(temp_weight)
+        print(temp_weight.shape)
+        temp_weight = temp_weight[0]
+        print(temp_weight.shape)
+
+        self.weight += temp_weight * 0.1
+        self.weight /= np.sum(self.weight)
+
+        print(self.weight.max(), self.weight.min())
+
     def _onclick_loop(self, event):
-        try:
-            index = self.plot_axes.index(event.inaxes)
-            print(index)
+        # try:
+        index = self.plot_axes.index(event.inaxes)
+        print(index)
+        self._update_weight(index)
+        self._update_distances_and_knn()
+        self._update_plot()
 
-            temp_weight = (np.abs(self.pcaed_data - self.pcaed_query)[index])**(-1)
-            temp_weight /= np.sum(temp_weight)
-
-            self.weight += temp_weight * 0.1
-            self.weight /= np.sum(self.weight)
-
-            self._update_distances()
-            self._update_plot()
-
-        except ValueError:
-            pass
+        # except ValueError:
+        #     pass
 
 
 if __name__ == '__main__':
