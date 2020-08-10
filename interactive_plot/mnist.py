@@ -37,18 +37,12 @@ class InteractiveKNNPlotter(object):
         plt.draw()
 
     def _update_weight(self, index):
-        print(self.weight.shape)
         temp_weight = np.abs(self.pcaed_data[self.knn_indices[index]] - self.pcaed_query)**(-1)
-        print(temp_weight.shape)
         temp_weight /= np.sum(temp_weight)
-        print(temp_weight.shape)
         temp_weight = temp_weight[0]
-        print(temp_weight.shape)
 
         self.weight += temp_weight * 0.1
         self.weight /= np.sum(self.weight)
-
-        print(self.weight.max(), self.weight.min())
 
     def _onclick_loop(self, event):
         # try:
