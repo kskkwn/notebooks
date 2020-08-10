@@ -1,9 +1,12 @@
 import pylab as plt
 
 
-def on_click(event):
+def button_press(event):
     print(event)
-    print(event.inaxes == axis)
+
+
+def button_release(event):
+    print(event)
 
 
 fig = plt.figure(figsize=(5, 5))
