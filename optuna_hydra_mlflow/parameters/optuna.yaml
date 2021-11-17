@@ -1,0 +1,26 @@
+# @package _global_
+defaults:
+  - hydra/sweeper: optuna
+  - model: default
+
+writer:
+  exp_name: MNIST
+  log_every: 10
+trainer:
+  nb_epochs: 20
+data:
+  batch_size: 32
+  validation_ratio: 0.2
+optimizer:
+  lr: 0.0001
+device:
+  cuda:0
+
+_target_: hydra_plugins.hydra_optuna_sweeper.optuna_sweeper.OptunaSweeper
+optuna_config:
+  direction: minimize
+  study_name: shpere
+  n_trials: 20
+  n_jobs: 1
+  sampler: tpe
+  seed: 123

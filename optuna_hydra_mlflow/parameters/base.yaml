@@ -1,0 +1,16 @@
+# @package _global_
+defaults:
+  - model: default
+writer:
+  exp_name: MNIST
+  log_every: 10
+trainer:
+  nb_epochs: 100
+data:
+  batch_size: 32
+  validation_ratio: 0.2
+optimizer:
+  lr: 0.0001
+device:
+  cuda:0
+

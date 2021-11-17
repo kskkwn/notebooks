@@ -1,0 +1,4 @@
+# @package _group_
+name: Default
+nb_hidden: 128
+nb_layers: 5
